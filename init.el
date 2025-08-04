@@ -23,7 +23,7 @@
 (column-number-mode)
 (global-display-line-numbers-mode t)
 
-(set-face-attribute 'default nil :font "JetBrainsMono" :height 120)
+(set-face-attribute 'default nil :font "JetBrainsMono" :height 140)
 
 (defvar bootstrap-version)
 (let ((bootstrap-file
@@ -43,8 +43,27 @@
 
 (straight-use-package 'use-package)
 
+(use-package general
+  :straight t)
+
+(use-package marginalia
+  :straight t
+  :init
+  (marginalia-mode))
+
+(setopt tab-always-indent 'complete)
+
 (use-package corfu
   :straight t
+  :general
+  (:keymaps 'corfu-map
+            :states 'insert
+            "C-n" #'corfu-next
+            "C-p" #'corfu-previous
+            "<escape>" #'corfu-quit
+            "<return>" #'corfu-insert
+            "M-d" #'corfu-show-documentation
+            "M-l" #'corfu-show-location)
   :init
   (global-corfu-mode))
 
