@@ -7,6 +7,9 @@
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;;
 
+;;; Commentary:
+;;  After being inspired by Emacs-Solo, I'm trying something like that.
+;;  An Emacs config with as little external packages as possible.
 
 (setq inhibit-statup-message t)
 
@@ -22,12 +25,34 @@
 
 (set-face-attribute 'default nil :font "JetBrainsMono" :height 120)
 
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name
+        "straight/repos/straight.el/bootstrap.el"
+        (or (bound-and-true-p straight-base-dir)
+            user-emacs-directory)))
+      (bootstrap-version 7))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
+
+(straight-use-package 'use-package)
+
+(use-package corfu
+  :straight t
+  :init
+  (global-corfu-mode))
+
 (use-package which-key
   :defer t
   :ensure nil
   :hook
   (after-init-hook . which-key-mode))
-
 
 ;; Borowed from Emacs-Solo:
 ;; https://github.com/LionyxML/emacs-solo/blob/f82486e591e0888983732c9b7ff4f948e4c021a8/init.el#L2450
