@@ -120,14 +120,74 @@ to complete the common part.
   :hook (company-mode . company-box-mode))
 #+end_src
 
+* Language support
+
+** Flycheck
+
+#+begin_src emacs-lisp
+  (use-package flycheck
+  :ensure
+  :init (global-flycheck-mode)
+  :bind (:map flycheck-mode-map
+              ("M-n" . flycheck-next-error) ; optional but recommended error navigation
+              ("M-p" . flycheck-previous-error)))
+#+end_src
+
+** LSP
+#+begin_src emacs-lisp
+    (use-package lsp-mode
+      :ensure
+      :init
+      ;; set prefix for lsp-command-keymap (few alternatives - "C-l", "C-c l")
+      (setq lsp-keymap-prefix "C-c l")
+      :hook (;; replace XXX-mode with concrete major-mode(e. g. python-mode)
+             (python-mode . lsp)
+  	   (elixir-mode . lsp)
+             ;; if you want which-key integration
+             (lsp-mode . lsp-enable-which-key-integration))
+      :commands lsp)
+
+  (use-package lsp-ui :ensure)
+#+end_src
+
+** Python
+#+begin_src emacs-lisp
+  (use-package elpy :ensure)
+#+end_src
+
+* Git
+
+#+begin_src emacs-lisp
+  (use-package magit
+    :ensure
+    :bind ("C-c C-g" . magit))
+
+  (use-package git-gutter
+    :ensure
+    :hook (prog-mode . git-gutter-mode)
+    :config
+    (setq git-gutter:update-interval 0.02))
+
+  (use-package git-gutter-fringe
+    :ensure
+    :config
+    (define-fringe-bitmap 'git-gutter-fr:added [224] nil nil '(center repeated))
+    (define-fringe-bitmap 'git-gutter-fr:modified [224] nil nil '(center repeated))
+    (define-fringe-bitmap 'git-gutter-fr:deleted [128 192 224 240] nil nil 'bottom))
+
+#+end_src
+
 * Org
 
 ** Roam
 #+begin_src emacs-lisp
-(use-package org-roam
-  :ensure
-  :config
-  (setq org-roam-directory (file-truename "~/org-roam")))
+  (use-package org-roam
+    :ensure
+    :bind (("C-c n l" . org-roam-buffer-toggle)
+  	 ("C-c n f" . org-roam-node-find)
+  	 ("C-c n i" . org-roam-node-insert))
+    :config
+    (setq org-roam-directory (file-truename "~/org/roam")))
 
 #+end_src
 
