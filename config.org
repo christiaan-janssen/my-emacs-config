@@ -34,8 +34,12 @@
 #+end_src
 
 ** Font
+Setup a font based on what machine
 #+begin_src emacs-lisp
-  (set-face-attribute 'default nil :font "JetBrainsMono" :height 120)
+  (if (eq system-type 'darwin)
+    (set-face-attribute 'default nil :font "Fira Code Retina" :height 160)
+  (set-face-attribute 'default nil :font "Fira Code" :height 140))
+;;  (set-face-attribute 'default nil :font "JetBrainsMono" :height 120)
 #+end_src
 
 ** Theme
