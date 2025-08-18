@@ -1,85 +1,34 @@
-(defvar bootstrap-version)
-(let ((bootstrap-file
-       (expand-file-name
-        "straight/repos/straight.el/bootstrap.el"
-        (or (bound-and-true-p straight-base-dir)
-            user-emacs-directory)))
-      (bootstrap-version 7))
-  (unless (file-exists-p bootstrap-file)
-    (with-current-buffer
-        (url-retrieve-synchronously
-         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
-         'silent 'inhibit-cookies)
-      (goto-char (point-max))
-      (eval-print-last-sexp)))
-  (load bootstrap-file nil 'nomessage))
+;;; init.el --- Emacs Configuration --- Packages  -*- lexical-binding: t; -*-
+;;; Commentary:
 
-(straight-use-package 'use-package)
+;;; Code:
 
-(use-package marginalia
+
+;;; Company mode
+(use-package company
   :straight t
-  :init
-  (marginalia-mode))
-
-;; Enable Vertico.
-(use-package vertico
-  :straight t
-;;  :custom
-  ;; (vertico-scroll-margin 0) ;; Different scroll margin
-  ;; (vertico-count 20) ;; Show more candidates
-  ;; (vertico-resize t) ;; Grow and shrink the Vertico minibuffer
-  ;; (vertico-cycle t) ;; Enable cycling for `vertico-next/previous'
-  :init
-  (vertico-mode))
-
-;; Persist history over Emacs restarts. Vertico sorts by history position.
-(use-package savehist
-  :straight t
-  :init
-  (savehist-mode))
-
-;; Optionally use the `orderless' completion style.
-(use-package orderless
-  :straight t
+  :after lsp-mode
+  :hook (prog-mode . company-mode)
+  :bind (:map company-active-map
+         ("<tab>" . company-complete-selection))
+        (:map lsp-mode-map
+         ("<tab>" . company-indent-or-complete-common))
   :custom
-  ;; Configure a custom style dispatcher (see the Consult wiki)
-  ;; (orderless-style-dispatchers '(+orderless-consult-dispatch orderless-affix-dispatch))
-  ;; (orderless-component-separator #'orderless-escapable-split-on-space)
-  (completion-styles '(orderless basic))
-  (completion-category-defaults nil)
-  (completion-category-overrides '((file (styles partial-completion)))))
+  (company-minimum-prefix-length 1)
+  (company-idle-delay 0.0))
 
-(setopt tab-always-indent 'complete)
-
-(use-package corfu
-  :straight (corfu :files (:defaults "extensions/*")
-                   :includes (corfu-info corfu-history corfu-popupinfo))
-
-  :bind (:map corfu-map
-              ("C-n" . corfu-next)
-              ("C-p" . corfu-previous))
-  :init
-  (global-corfu-mode))
-
-;; Enable auto completion and configure quitting
-(setq corfu-auto t
-      corfu-quit-no-match 'separator) ;; or t
-
-(use-package kind-icon
-  :ensure t
-  :after corfu
-  ;:custom
-  ; (kind-icon-blend-background t)
-  ; (kind-icon-default-face 'corfu-default) ; only needed with blend-background
-  :config
-  (add-to-list 'corfu-margin-formatters #'kind-icon-margin-formatter))
+(use-package company-box
+  :straight t
+  :hook (company-mode . company-box-mode))
 
 ;;; Org-Mode
 
-(use-package org-roam
+(use-package flycheck
   :straight t
-  :config
-  (setq org-roam-directory (file-truename "~/org-roam")))
+  :init (global-flycheck-mode)
+  :bind (:map flycheck-mode-map
+              ("M-n" . flycheck-next-error) ; optional but recommended error navigation
+              ("M-p" . flycheck-previous-error)))
 
 (use-package claude-code-ide
   :straight (:type git :host github :repo "manzaltu/claude-code-ide.el")
@@ -88,26 +37,47 @@
   (claude-code-ide-emacs-tools-setup)) ; Optionally enable Emacs MCP tools
 
 (use-package exec-path-from-shell
+  :straight t
+  :init
+  (exec-path-from-shell-initialize))
+
+(use-package vterm
   :straight t)
 
 ;;; Git Tools
-
 (use-package magit
-  :straight t
-  :bind (("C-x g" . magit-status)
-         ("C-x M-g" . magit-dispatch)
-         ("C-c M-g" . magit-file-popup))
-  :config
-  (setq magit-refresh-status-buffer nil)
-  (setq magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
+  :straight t)
 
-(use-package diff-hl
+(use-package git-gutter
+  :straight t
+  :hook (prog-mode . git-gutter-mode)
+  :config
+  (setq git-gutter:update-interval 0.02))
+
+(use-package git-gutter-fringe
   :straight t
   :config
-  (global-diff-hl-mode)
-  (diff-hl-flydiff-mode)
-  :hook
-  (magit-pre-refresh . diff-hl-magit-pre-refresh)
-  (magit-post-refresh . diff-hl-magit-post-refresh))
+  (define-fringe-bitmap 'git-gutter-fr:added [224] nil nil '(center repeated))
+  (define-fringe-bitmap 'git-gutter-fr:modified [224] nil nil '(center repeated))
+  (define-fringe-bitmap 'git-gutter-fr:deleted [128 192 224 240] nil nil 'bottom))
+
+(use-package lsp-mode
+  :init
+  ;; set prefix for lsp-command-keymap (few alternatives - "C-l", "C-c l")
+  (setq lsp-keymap-prefix "C-c l")
+  :hook (;; replace XXX-mode with concrete major-mode(e. g. python-mode)
+         (python-mode . lsp)
+	 (elixir-mode . lsp)
+         ;; if you want which-key integration
+         (lsp-mode . lsp-enable-which-key-integration))
+  :commands lsp)
+
+(use-package lsp-ui
+  :straight t)
+
+(use-package elpy
+  :straight t)
+
 
 (provide 'packages)
+;;; packages.el ends here

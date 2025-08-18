@@ -1,0 +1,270 @@
+* Christiaan's Emacs Config
+
+* Setup Package manager
+For this new config, I'm trying out [[https://github.com/progfolio/elpaca][Elpaca]].
+
+#+begin_src emacs-lisp
+(defvar elpaca-installer-version 0.11)
+(defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
+(defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
+(defvar elpaca-repos-directory (expand-file-name "repos/" elpaca-directory))
+(defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
+			:ref nil
+			:files (:defaults (:exclude "extensions"))
+			:build (:not elpaca--activate-package)))
+(let* ((repo  (expand-file-name "elpaca/" elpaca-repos-directory))
+ (build (expand-file-name "elpaca/" elpaca-builds-directory))
+ (order (cdr elpaca-order))
+ (default-directory repo))
+  (add-to-list 'load-path (if (file-exists-p build) build repo))
+  (unless (file-exists-p repo)
+    (make-directory repo t)
+    (when (< emacs-major-version 28) (require 'subr-x))
+    (condition-case-unless-debug err
+  (if-let ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
+	   ((zerop (call-process "git" nil buffer t "clone"
+				 (plist-get order :repo) repo)))
+	   ((zerop (call-process "git" nil buffer t "checkout"
+				 (or (plist-get order :ref) "--"))))
+	   (emacs (concat invocation-directory invocation-name))
+	   ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
+				 "--eval" "(byte-recompile-directory \".\" 0 'force)")))
+	   ((require 'elpaca))
+	   ((elpaca-generate-autoloads "elpaca" repo)))
+      (progn (message "%s" (buffer-string)) (kill-buffer buffer))
+    (error "%s" (with-current-buffer buffer (buffer-string))))
+((error) (warn "%s" err) (delete-directory repo 'recursive))))
+  (unless (require 'elpaca-autoloads nil t)
+    (require 'elpaca)
+    (elpaca-generate-autoloads "elpaca" repo)
+    (load "./elpaca-autoloads")))
+(add-hook 'after-init-hook #'elpaca-process-queues)
+(elpaca `(,@elpaca-order))
+
+;; Install use-package support
+(elpaca elpaca-use-package
+  ;; Enable :elpaca use-package keyword.
+  (elpaca-use-package-mode)
+  ;; Assume :elpaca t unless otherwise specified.
+  )
+
+;; Block until current queue processed.
+(elpaca-wait)
+
+;;When installing a package which modifies a form used at the top-level
+;;(e.g. a package which adds a use-package key word),
+;;use `elpaca-wait' to block until that package has been installed/configured.
+;;For example:
+;;(use-package general :demand t)
+;;(elpaca-wait)
+
+;;Turns off elpaca-use-package-mode current declartion
+;;Note this will cause the declaration to be interpreted immediately (not deferred).
+;;Useful for configuring built-in emacs features.
+;;(use-package emacs :elpaca nil :config (setq ring-bell-function #'ignore))
+
+;; Don't install anything. Defer execution of BODY
+;;(elpaca nil (message "deferred"))
+#+end_src
+
+* UI
+** Clean up Emacs
+
+#+begin_src emacs-lisp
+  (setq inhibit-startup-message t)
+
+  (scroll-bar-mode -1)
+  (tool-bar-mode -1)
+  (tooltip-mode -1)
+  (menu-bar-mode -1)
+
+  (set-fringe-mode 10)
+
+  (column-number-mode)
+  (global-display-line-numbers-mode t)
+#+end_src
+
+** Font
+#+begin_src emacs-lisp
+  (set-face-attribute 'default nil :font "JetBrainsMono" :height 120)
+#+end_src
+
+** Theme
+Setup themes
+#+begin_src emacs-lisp
+  (use-package catppuccin-theme
+    :ensure
+    :init
+    (setq catppuccin-flavor 'mocha) ;; or 'latte, 'macchiato, or 'mocha
+    (load-theme 'catppuccin :no-confirm))
+#+end_src
+
+* Completion
+
+** Marginalia
+Add [[https://github.com/minad/marginalia][marginalia]] to the minibuffer completions. Marginalia are marks or annotations
+placed at the margin of the page of a book or in this case helpful colorful
+annotations placed at the margin of the minibuffer for completion candidates.
+
+#+begin_src emacs-lisp
+  (use-package marginalia
+    :ensure t
+    :init
+    (marginalia-mode))
+#+end_src
+
+** Vertico
+[[https://github.com/minad/vertico][Vertico]] provides a performant and minimalistic vertical completion UI based on
+the default completion system. The focus of Vertico is to provide a UI which
+behaves correctly under all circumstances. 
+
+#+begin_src emacs-lisp
+  (use-package vertico
+    :ensure t
+    :init
+    (vertico-mode))
+#+end_src
+
+** Orderless
+This package provides an [[https://github.com/oantolin/orderless][orderless]] completion style that divides the pattern
+into space-separated components, and matches candidates that match all of the
+components in any order. Each component can match in any one of several ways:
+literally, as a regexp, as an initialism, in the flex style, or as multiple
+word prefixes. By default, regexp and literal matches are enabled.
+
+#+begin_src emacs-lisp
+  ;; Optionally use the `orderless' completion style.
+  (use-package orderless
+    :ensure t
+    :custom
+    ;; Configure a custom style dispatcher (see the Consult wiki)
+    ;; (orderless-style-dispatchers '(+orderless-consult-dispatch orderless-affix-dispatch))
+    ;; (orderless-component-separator #'orderless-escapable-split-on-space)
+    (completion-styles '(orderless basic))
+    (completion-category-defaults nil)
+    (completion-category-overrides '((file (styles partial-completion)))))
+
+  (setopt tab-always-indent 'complete)
+#+end_src
+
+** Company
+[[https://company-mode.github.io/][Company]] is a text completion framework for Emacs. The name stands for
+"complete anything".  Completion will start automatically after you type
+a few letters. Use M-n and M-p to select, <return> to complete or <tab>
+to complete the common part.
+
+#+begin_src emacs-lisp
+(use-package company
+  :defer 2
+  :diminish
+  :custom
+  (company-begin-commands '(self-insert-command))
+  (company-idle-delay .1)
+  (company-minimum-prefix-length 2)
+  (company-show-numbers t)
+  (company-tooltip-align-annotations 't)
+  (global-company-mode t))
+
+(use-package company-box
+  :after company
+  :diminish
+  :hook (company-mode . company-box-mode))
+#+end_src
+
+* Org
+
+** Roam
+#+begin_src emacs-lisp
+(use-package org-roam
+  :ensure
+  :config
+  (setq org-roam-directory (file-truename "~/org-roam")))
+
+#+end_src
+
+* Email
+
+#+begin_src emacs-lisp
+
+  (use-package mu4e
+    :ensure nil
+    ;; :load-path "/usr/share/emacs/site-lisp/mu4e/"
+    ;; :defer 20 ; Wait until 20 seconds after startup
+    :config
+
+    ;; This is set to 't' to avoid mail syncing issues when using mbsync
+    (setq mu4e-change-filenames-when-moving t)
+
+    ;; Refresh mail using isync every 10 minutes
+    (setq mu4e-update-interval (* 10 60))
+    (setq mu4e-get-mail-command "mbsync -a")
+    (setq mu4e-maildir "~/Mail")
+
+    (setq mu4e-drafts-folder "/Outlook/Drafts")
+    (setq mu4e-sent-folder   "/Outlook/Sent")
+    (setq mu4e-trash-folder  "/Outlook/Trash"))
+
+
+#+end_src
+
+* Language Support
+Setup a macro to connect Treesitter modes with extensions
+
+#+begin_src emacs-lisp
+  (defmacro setup-lang (lang extensions)
+    "Set up LANG-ts-mode using `use-package` and associate it with EXTENSIONS.
+
+  LANG should be a symbol like `json` or `yaml`.
+  EXTENSIONS should be a list of strings like (\"json\" \"jsonc\").
+
+  This macro expands to a `use-package` declaration that associates
+  file extensions with the corresponding tree-sitter mode."
+    `(use-package ,(intern (format "%s-ts-mode" lang))
+       :ensure t
+       :mode ,(mapcar (lambda (ext)
+                        (format "\\.%s\\'" ext))
+                      extensions)))
+#+end_src
+
+** Connect ts-modes
+
+#+begin_src emacs-lisp
+;;  (setup-lang "elixir" ("ex" "exs" "mix.lock"))
+;;  (setup-lang "python" ("py"))
+#+end_src
+
+** Setup Treesitter grammer
+Treesitter needs grammer to work, this list contains location where
+they can be downloaded.
+
+#+begin_src emacs-lisp
+  (setq treesit-language-source-alist
+        '((bash "https://github.com/tree-sitter/tree-sitter-bash")
+  	(cmake "https://github.com/uyha/tree-sitter-cmake")
+  	(css "https://github.com/tree-sitter/tree-sitter-css")
+  	(elisp "https://github.com/Wilfred/tree-sitter-elisp")
+  	(elixir "https://github.com/elixir-lang/tree-sitter-elixir")
+  	(go "https://github.com/tree-sitter/tree-sitter-go")
+  	(heex "https://github.com/phoenixframework/tree-sitter-heex")
+  	(html "https://github.com/tree-sitter/tree-sitter-html")
+  	(javascript "https://github.com/tree-sitter/tree-sitter-javascript" "master" "src")
+  	(json "https://github.com/tree-sitter/tree-sitter-json")
+  	(make "https://github.com/alemuller/tree-sitter-make")
+  	(markdown "https://github.com/ikatyang/tree-sitter-markdown")
+  	(python "https://github.com/tree-sitter/tree-sitter-python")
+  	(toml "https://github.com/tree-sitter/tree-sitter-toml")
+  	(tsx "https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src")
+  	(typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")
+  	(yaml "https://github.com/ikatyang/tree-sitter-yaml")))
+#+end_src
+
+* Which-key
+
+#+begin_src emacs-lisp
+  (use-package which-key
+    :defer t
+    :diminish t
+    :ensure nil
+    :hook
+    (after-init-hook . which-key-mode))
+#+end_src
