@@ -16,3 +16,5 @@ projects
 recentf
 saveplace
 *.*~
+/config.el
+/elpaca/
